@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { motion } from "motion/react";
+import { ScreenWrapper } from "./ui/ScreenWrapper";
 
 interface SplashScreenProps {
   onDone: () => void;
@@ -48,24 +49,15 @@ export function SplashScreen({ onDone }: SplashScreenProps) {
         }}
       />
 
-      {/* Content */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "flex-end",
-          paddingBottom: 80,
-        }}
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          style={{ textAlign: "center" }}
-        >
+      {/* Content - centered by ScreenWrapper */}
+      <ScreenWrapper>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%", paddingBottom: 80 }}>
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            style={{ textAlign: "center" }}
+          >
           {/* Logo mark */}
           <div style={{ marginBottom: 12, display: "flex", justifyContent: "center" }}>
             <div
@@ -142,6 +134,7 @@ export function SplashScreen({ onDone }: SplashScreenProps) {
           </div>
         </motion.div>
       </div>
+    </ScreenWrapper>
     </div>
   );
 }

@@ -26,104 +26,61 @@ export function EmergencyScreen({ onClose }: EmergencyScreenProps) {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
+      className="absolute inset-0 z-[95] flex flex-col pt-12 px-5 pb-8 overflow-y-auto"
       style={{
-        position: "absolute",
-        inset: 0,
         background: sosActivated ? "rgba(255,61,0,0.06)" : "#0B0B0B",
-        zIndex: 95,
-        display: "flex",
-        flexDirection: "column",
-        padding: "48px 20px 32px",
-        overflowY: "auto",
         transition: "background 0.5s",
       }}
     >
       {/* Close */}
       <button
         onClick={onClose}
-        style={{
-          position: "absolute",
-          top: 48,
-          right: 20,
-          background: "#1A1A1A",
-          border: "none",
-          borderRadius: 20,
-          padding: 8,
-          cursor: "pointer",
-          color: "#888",
-        }}
+        className="absolute top-12 right-5 bg-[#1A1A1A] border-none rounded-full p-2 cursor-pointer text-zinc-500 hover:text-white transition-colors"
       >
         <X size={18} />
       </button>
 
       {/* Header */}
-      <div style={{ marginBottom: 28, paddingRight: 40 }}>
-        <div
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 11,
-            color: "#FF3D00",
-            letterSpacing: "0.2em",
-            textTransform: "uppercase",
-            marginBottom: 6,
-          }}
-        >
+      <div className="mb-8 pr-10">
+        <div className="text-[10px] text-[#FF3D00] tracking-[0.2em] uppercase font-black mb-1.5">
           Emergency Mode
         </div>
-        <div style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 800, color: "#FFFFFF", letterSpacing: "0.02em" }}>
+        <div className="text-3xl font-black text-white tracking-tight leading-none">
           NEED HELP?
         </div>
-        <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "#555", marginTop: 4 }}>
-          📍 Near Keylong, Himachal Pradesh · 3,120m altitude
+        <div className="text-[12px] text-zinc-500 mt-2">
+          <span className="text-[#FF3D00]">📍</span> Near Keylong, Himachal Pradesh · 3,120m altitude
         </div>
       </div>
 
       {/* SOS Button */}
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
+      <div className="flex justify-center mb-10">
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={handleSOS}
+          className="relative flex flex-col items-center justify-center cursor-pointer rounded-full"
           style={{
-            width: 140,
-            height: 140,
-            borderRadius: "50%",
-            background: sosActivated ? "#FF3D00" : "rgba(255,61,0,0.1)",
-            border: `3px solid ${sosActivated ? "#FF3D00" : "rgba(255,61,0,0.4)"}`,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            position: "relative",
+            width: 160,
+            height: 160,
+            background: sosActivated ? "#FF3D00" : "#1A0A05",
+            border: `2px solid ${sosActivated ? "#FF3D00" : "#FF3D00"}`,
           }}
         >
           {sosActivated && (
             <motion.div
               animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
               transition={{ duration: 1.5, repeat: Infinity }}
-              style={{
-                position: "absolute",
-                inset: -16,
-                borderRadius: "50%",
-                border: "2px solid rgba(255,61,0,0.4)",
-              }}
+              className="absolute -inset-4 rounded-full border-2 border-[#FF3D00]/40"
             />
           )}
-          <AlertOctagon size={40} color={sosActivated ? "#FFFFFF" : "#FF3D00"} />
+          <AlertOctagon size={44} color={sosActivated ? "#FFFFFF" : "#FF3D00"} strokeWidth={1.5} />
           <span
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: 22,
-              fontWeight: 800,
-              color: sosActivated ? "#FFFFFF" : "#FF3D00",
-              letterSpacing: "0.1em",
-              marginTop: 6,
-            }}
+            className={`font-black text-2xl tracking-widest mt-2 ${sosActivated ? "text-white" : "text-[#FF3D00]"}`}
           >
             SOS
           </span>
           {sosActivated && countdown > 0 && (
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 14, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>
+            <span className="font-mono text-xs text-white/60 mt-1">
               Calling in {countdown}s
             </span>
           )}
@@ -134,115 +91,79 @@ export function EmergencyScreen({ onClose }: EmergencyScreenProps) {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          style={{
-            background: "rgba(255,61,0,0.08)",
-            border: "1px solid rgba(255,61,0,0.25)",
-            borderRadius: 12,
-            padding: "12px 16px",
-            marginBottom: 16,
-            textAlign: "center",
-          }}
+          className="bg-[#FF3D00]/10 border border-[#FF3D00]/25 rounded-xl px-4 py-3 mb-5 text-center"
         >
-          <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "#FF3D00" }}>
+          <div className="text-[12px] text-[#FF3D00] font-semibold">
             📍 Live location shared with Priya Singh (+91 98765 43210)
           </div>
-          <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "#666", marginTop: 4 }}>
+          <div className="text-[11px] text-zinc-400 mt-1.5">
             Emergency services alerted · GPS: 32.0784° N, 77.1734° E
           </div>
         </motion.div>
       )}
 
       {/* Emergency actions */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-        <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "#444", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 2 }}>
+      <div className="flex flex-col gap-3 mb-6">
+        <div className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider mb-0.5">
           Emergency Actions
         </div>
 
         {[
           {
-            icon: <Phone size={20} />,
+            icon: <Phone size={20} strokeWidth={2} />,
             title: "Call Emergency Contact",
             sub: "Priya Singh · +91 98765 43210",
             color: "#4FC3F7",
-            bg: "rgba(79,195,247,0.06)",
-            border: "rgba(79,195,247,0.2)",
+            bg: "#0A151A",
+            border: "#152A33",
           },
           {
-            icon: <MapPin size={20} />,
+            icon: <MapPin size={20} strokeWidth={2} />,
             title: "Nearest Hospital",
             sub: "Keylong District Hospital · 2.3 km",
             color: "#00C853",
-            bg: "rgba(0,200,83,0.06)",
-            border: "rgba(0,200,83,0.2)",
+            bg: "#051A0A",
+            border: "#0A3314",
           },
           {
-            icon: <Wrench size={20} />,
+            icon: <Wrench size={20} strokeWidth={2} />,
             title: "Nearest Mechanic",
             sub: "Rajesh Motors · 800 m ahead",
             color: "#FFB300",
-            bg: "rgba(255,179,0,0.06)",
-            border: "rgba(255,179,0,0.2)",
+            bg: "#1A1505",
+            border: "#332A0A",
           },
         ].map((item) => (
           <button
             key={item.title}
-            style={{
-              background: item.bg,
-              border: `1px solid ${item.border}`,
-              borderRadius: 14,
-              padding: "16px",
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              cursor: "pointer",
-              textAlign: "left",
-            }}
+            className="rounded-2xl p-3.5 flex items-center gap-4 text-left transition-colors cursor-pointer"
+            style={{ background: item.bg, border: `1px solid ${item.border}` }}
           >
-            <div
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                background: `${item.bg}`,
-                border: `1px solid ${item.border}`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-                color: item.color,
-              }}
-            >
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ color: item.color }}>
               {item.icon}
             </div>
             <div>
-              <div style={{ fontFamily: "var(--font-body)", fontSize: 15, color: "#FFFFFF", fontWeight: 500 }}>{item.title}</div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "#666", marginTop: 2 }}>{item.sub}</div>
+              <div className="text-[15px] font-bold text-white tracking-tight">{item.title}</div>
+              <div className="font-mono text-[10px] text-zinc-500 mt-0.5">{item.sub}</div>
             </div>
           </button>
         ))}
       </div>
 
       {/* Medical info */}
-      <div
-        style={{
-          background: "#111",
-          border: "1px solid rgba(255,255,255,0.06)",
-          borderRadius: 12,
-          padding: "14px 16px",
-        }}
-      >
-        <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "#444", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>
+      <div className="bg-[#111] border border-white/5 rounded-2xl p-4 mt-auto">
+        <div className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider mb-3">
           Medical Info (for responders)
         </div>
-        <div style={{ display: "flex", gap: 20 }}>
+        <div className="flex gap-6">
           {[
             { label: "Blood", value: "B+" },
             { label: "Allergies", value: "None" },
             { label: "Rider", value: "Arjun Singh" },
           ].map((m) => (
             <div key={m.label}>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 600, color: "#FF3D00" }}>{m.value}</div>
-              <div style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "#555" }}>{m.label}</div>
+              <div className="font-black text-sm text-[#FF3D00]">{m.value}</div>
+              <div className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider">{m.label}</div>
             </div>
           ))}
         </div>

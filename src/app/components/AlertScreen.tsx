@@ -1,4 +1,5 @@
 import { AlertTriangle, X, Navigation, RotateCcw } from "lucide-react";
+import { PrimaryButton } from "./ui/PrimaryButton";
 import { motion } from "motion/react";
 
 interface AlertScreenProps {
@@ -165,29 +166,10 @@ export function AlertScreen({ onDismiss, onViewRoute }: AlertScreenProps) {
 
       {/* Actions */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
-        <button
-          onClick={onViewRoute}
-          style={{
-            width: "100%",
-            background: "#FF6B00",
-            border: "none",
-            borderRadius: 14,
-            padding: "16px",
-            color: "#FFFFFF",
-            fontFamily: "var(--font-display)",
-            fontSize: 16,
-            fontWeight: 700,
-            letterSpacing: "0.06em",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-          }}
-        >
+        <PrimaryButton onClick={onViewRoute} className="flex items-center justify-center gap-2">
           <Navigation size={18} />
           VIEW ROUTE
-        </button>
+        </PrimaryButton>
         <button
           onClick={onViewRoute}
           style={{

@@ -1,5 +1,11 @@
+
+import { useJourney } from "../context/JourneyContext";
+import { useMemo } from "react";
 import { Wifi, Thermometer, Fuel, Navigation, Clock, AlertTriangle, Phone, Zap } from "lucide-react";
 import { motion } from "motion/react";
+import { ScreenWrapper } from "./ui/ScreenWrapper";
+import { PrimaryButton } from "./ui/PrimaryButton";
+import { SecondaryButton } from "./ui/SecondaryButton";
 
 interface HomeDashboardProps {
   onStartRide: () => void;
@@ -51,22 +57,88 @@ const StatCard = ({
 );
 
 export function HomeDashboard({ onStartRide, onNavigate }: HomeDashboardProps) {
+
+const { currentRider, journeyData } =
+  useJourney();
+
+const greeting = useMemo(() => {
+  const hour = new Date().getHours();
+
+  if (hour < 12) return "Good Morning";
+  if (hour < 18) return "Good Afternoon";
+
+  return "Good Evening";
+}, []);
+
+const riderName =
+  currentRider?.name || "Rider";
+
+const route =
+  journeyData?.route;
+
+const weather =
+  journeyData?.weather;
+
+const readinessScore =
+  journeyData?.readinessScore || 0;
+
+const motoRecommendations =
+  journeyData?.motoRecommendations || [];
+
+const motoWeatherMessage =
+  journeyData?.motoWeatherMessage ||
+  "Moto intelligence unavailable";
+
+const departureRecommendation =
+  journeyData?.departureRecommendation ||
+  "No recommendation available";
+
+  const weatherRisk =
+  journeyData?.weatherRisk || "LOW";
+
+const journeyRisk =
+  journeyData?.journeyRisk || "LOW";
+
+const fuelRange =
+  journeyData?.fuelPlan?.maxRangeKm || 0;
+
+const fuelStops =
+  journeyData?.fuelPlan?.fuelStopsNeeded || 0;
+
+const fuelPercent =
+  Math.max(
+    100 - fuelStops * 10,
+    40
+  );
+
+const routeName =
+  route?.routeName ||
+  `${route?.origin || ""} → ${route?.destination || ""}`;
+
+const networkStatus =
+  navigator.onLine
+    ? "ONLINE"
+    : "OFFLINE";
+
+const emergencyConfigured =
+  currentRider?.emergencyContact
+    ? "CONFIGURED"
+    : "NOT CONFIGURED";
+
+const eta =
+  route?.eta
+    ? new Date(route.eta).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "Unknown";
   return (
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-        background: "#0B0B0B",
-        display: "flex",
-        flexDirection: "column",
-        overflowY: "auto",
-        paddingBottom: 80,
-      }}
-    >
+    <ScreenWrapper>
+      <div style={{ minHeight: "100%", paddingBottom: 120 }}>
       {/* Header */}
       <div
         style={{
-          padding: "48px 20px 16px",
+          padding: "24px 0 12px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "flex-start",
@@ -74,14 +146,22 @@ export function HomeDashboard({ onStartRide, onNavigate }: HomeDashboardProps) {
       >
         <motion.div initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}>
           <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "#555", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 3 }}>
-            Good morning
+            {greeting}
           </div>
           <div style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 700, color: "#FFFFFF", letterSpacing: "0.02em" }}>
-            ARJUN SINGH
+            {riderName.toUpperCase()}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4 }}>
             <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#00C853" }} />
-            <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "#00C853" }}>All systems nominal</span>
+            <span
+            style={{
+            fontFamily: "var(--font-body)",
+            fontSize: 12,
+            color: "#00C853",
+            }}
+            >
+          Journey Ready • Weather: {weatherRisk} • Risk: {journeyRisk}
+          </span>
           </div>
         </motion.div>
 
@@ -94,11 +174,13 @@ export function HomeDashboard({ onStartRide, onNavigate }: HomeDashboardProps) {
         >
           <div style={{ display: "flex", alignItems: "center", gap: 5, background: "#1A1A1A", borderRadius: 20, padding: "5px 10px" }}>
             <Wifi size={11} color="#00C853" />
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "#00C853" }}>4G STRONG</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "#00C853" }}>
+              {networkStatus}
+            </span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 5, background: "#1A1A1A", borderRadius: 20, padding: "5px 10px" }}>
             <Phone size={11} color="#4FC3F7" />
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "#4FC3F7" }}>SOS READY</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "#4FC3F7" }}>SOS {emergencyConfigured}</span>
           </div>
         </motion.div>
       </div>
@@ -145,7 +227,7 @@ export function HomeDashboard({ onStartRide, onNavigate }: HomeDashboardProps) {
                 borderRadius: 6,
               }}
             >
-              NH-3
+              {routeName}
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
@@ -156,24 +238,24 @@ export function HomeDashboard({ onStartRide, onNavigate }: HomeDashboardProps) {
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: "var(--font-body)", fontSize: 14, color: "#FFFFFF", marginBottom: 10 }}>
-                Manali, HP
+                {route?.origin || "No Origin"}
               </div>
               <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 700, color: "#FF6B00", letterSpacing: "0.04em" }}>
-                LEH, LADAKH
+                {route?.destination || "No Destination"}
               </div>
             </div>
           </div>
           <div style={{ display: "flex", gap: 16, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
             <div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 600, color: "#FFFFFF" }}>476 km</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 600, color: "#FFFFFF" }}>{route?.distanceKm ?? 0} km</div>
               <div style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "#555", marginTop: 1 }}>Distance</div>
             </div>
             <div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 600, color: "#FFFFFF" }}>2 days</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 600, color: "#FFFFFF" }}>{route?.durationHours ?? 0} hrs</div>
               <div style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "#555", marginTop: 1 }}>Est. duration</div>
             </div>
             <div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 600, color: "#FFB300" }}>6:30 AM</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 600, color: "#FFB300" }}>{departureRecommendation}</div>
               <div style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "#555", marginTop: 1 }}>Depart by</div>
             </div>
           </div>
@@ -204,7 +286,7 @@ export function HomeDashboard({ onStartRide, onNavigate }: HomeDashboardProps) {
               Weather advisory:
             </span>
             <span style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "#999", marginLeft: 5 }}>
-              Light rain near Rohtang Pass after 2 PM
+              {motoWeatherMessage}
             </span>
           </div>
         </div>
@@ -213,37 +295,40 @@ export function HomeDashboard({ onStartRide, onNavigate }: HomeDashboardProps) {
       {/* Dashboard Grid */}
       <div style={{ padding: "0 20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
         <StatCard
-          icon={<Fuel size={15} />}
-          label="Fuel"
-          value="72%"
-          sub="Range: 320 km"
-          color="#FF6B00"
-          delay={0.2}
-        />
+        icon={<Fuel size={15} />}
+        label="Fuel"
+        value={`${fuelPercent}%`}
+        sub={`Range ${fuelRange} km`}
+        color="#FF6B00"
+        delay={0.2}
+      />
         <StatCard
           icon={<Thermometer size={15} />}
           label="Weather"
-          value="24°C"
-          sub="No rain for 65 km"
+          value={`${weather?.temperature ?? "--"}°C`}
+          sub={
+          weather?.description ||
+          "Weather unavailable"
+          }
           color="#4FC3F7"
           delay={0.25}
         />
         <StatCard
-          icon={<Navigation size={15} />}
-          label="Remaining"
-          value="187 km"
-          sub="ETA: 6:42 PM"
-          color="#00C853"
-          delay={0.3}
+        icon={<Navigation size={15} />}
+        label="Trip Distance"
+        value={`${route?.distanceKm ?? 0} km`}
+        sub={`ETA: ${eta}`}
+        color="#00C853"
+        delay={0.3}
         />
         <StatCard
-          icon={<Clock size={15} />}
-          label="Ride Time"
-          value="4h 12m"
-          sub="Avg: 45 km/h"
-          color="#A78BFA"
-          delay={0.35}
-        />
+        icon={<Clock size={15} />}
+        label="Ride Duration"
+        value={`${route?.durationHours ?? 0} hrs`}
+        sub="Google Routes Estimate"
+        color="#A78BFA"
+        delay={0.35}
+      />
       </div>
 
       {/* Moto AI nudge */}
@@ -283,7 +368,10 @@ export function HomeDashboard({ onStartRide, onNavigate }: HomeDashboardProps) {
               Moto says
             </div>
             <div style={{ fontFamily: "var(--font-body)", fontSize: 14, color: "#CCC", lineHeight: 1.5 }}>
-              "You've been riding for 4 hours. Consider a hydration break at the next stop in Keylong."
+              {
+                motoRecommendations[0] ||
+                "Moto intelligence is preparing recommendations."
+              }
             </div>
           </div>
         </div>
@@ -291,57 +379,17 @@ export function HomeDashboard({ onStartRide, onNavigate }: HomeDashboardProps) {
 
       {/* Action buttons */}
       <div style={{ padding: "0 20px", display: "flex", gap: 10, marginBottom: 16 }}>
-        <motion.button
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45 }}
-          onClick={onStartRide}
-          style={{
-            flex: 2,
-            background: "#FF6B00",
-            border: "none",
-            borderRadius: 14,
-            padding: "16px",
-            color: "#FFFFFF",
-            fontFamily: "var(--font-display)",
-            fontSize: 17,
-            fontWeight: 700,
-            letterSpacing: "0.06em",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-          }}
-        >
-          <Navigation size={18} />
-          START RIDE
-        </motion.button>
-        <motion.button
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          onClick={() => onNavigate("readiness")}
-          style={{
-            flex: 1,
-            background: "#151515",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 14,
-            padding: "16px",
-            color: "#CCC",
-            fontFamily: "var(--font-display)",
-            fontSize: 15,
-            fontWeight: 700,
-            letterSpacing: "0.04em",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-          }}
-        >
-          CHECK
-        </motion.button>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }} style={{ flex: 2 }}>
+          <PrimaryButton onClick={onStartRide} className="flex items-center justify-center gap-2 w-full h-full">
+            <Navigation size={18} />
+            START RIDE
+          </PrimaryButton>
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} style={{ flex: 1 }}>
+          <SecondaryButton onClick={() => onNavigate("readiness")} className="flex items-center justify-center gap-2 h-full">
+            CHECK
+          </SecondaryButton>
+        </motion.div>
       </div>
 
       {/* Readiness score */}
@@ -363,12 +411,12 @@ export function HomeDashboard({ onStartRide, onNavigate }: HomeDashboardProps) {
             <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "#555", textTransform: "uppercase", letterSpacing: "0.1em" }}>
               Ride Readiness
             </span>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 15, fontWeight: 600, color: "#00C853" }}>84%</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 15, fontWeight: 600, color: "#00C853" }}>{readinessScore}%</span>
           </div>
           <div style={{ background: "#1A1A1A", borderRadius: 4, height: 5, overflow: "hidden" }}>
             <div
               style={{
-                width: "84%",
+                width: `${readinessScore}%`,
                 height: "100%",
                 background: "linear-gradient(90deg, #FF6B00, #00C853)",
                 borderRadius: 4,
@@ -376,10 +424,13 @@ export function HomeDashboard({ onStartRide, onNavigate }: HomeDashboardProps) {
             />
           </div>
           <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "#444", marginTop: 6 }}>
-            Offline maps not downloaded — tap Readiness to complete
+            {journeyRisk === "High"
+  ? "High expedition risk detected. Review route and weather."
+  : "Journey intelligence completed successfully."}
           </div>
         </div>
       </motion.div>
-    </div>
+      </div>
+    </ScreenWrapper>
   );
 }

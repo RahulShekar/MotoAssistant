@@ -2,6 +2,13 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Mic, AlertOctagon } from "lucide-react";
 
+import { useJourney } from "./context/JourneyContext";
+import { analyzeJourney } from "./services/api";
+import { MobileNumberScreen } from "./components/ui/MobileNumberScreen";
+import { OTPVerificationScreen } from "./components/ui/OTPVerificationScreen";
+import { JourneySetupScreen } from "./components/ui/JourneySetupScreen";
+import { JourneyAnalysisScreen } from "./components/ui/JourneyAnalysisScreen";
+
 import { SplashScreen } from "./components/SplashScreen";
 import { LoginScreen } from "./components/LoginScreen";
 import { RiderSetupScreen } from "./components/RiderSetupScreen";
@@ -22,7 +29,11 @@ import { AskMotoSheet } from "./components/AskMotoSheet";
 type Screen =
   | "splash"
   | "login"
+  | "mobile-number"
+  | "otp"
   | "setup"
+  | "journey-setup"
+  | "journey-analysis"
   | "home"
   | "navigate"
   | "readiness"
@@ -60,36 +71,102 @@ export default function App() {
   const [showEmergency, setShowEmergency] = useState(false);
   const [showAskMoto, setShowAskMoto] = useState(false);
   const [prevScreen, setPrevScreen] = useState<Screen | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState("");
+
+  const { setJourneyData } = useJourney();
+  const { currentRider } = useJourney();
 
   const navigate = (s: Screen) => {
     setPrevScreen(screen);
     setScreen(s);
   };
 
-  // Auto-trigger alert after entering navigation map
-  useEffect(() => {
-    if (screen === "navigation-map") {
-      const t = setTimeout(() => setShowAlert(true), 5000);
-      return () => clearTimeout(t);
-    }
-  }, [screen]);
+  // Removed Auto-trigger alert
 
   const renderScreen = () => {
     switch (screen) {
       case "splash":
         return <SplashScreen onDone={() => navigate("login")} />;
       case "login":
-        return <LoginScreen onLogin={() => navigate("setup")} />;
+  return (
+    <LoginScreen
+      onLogin={() => navigate("setup")}
+    />
+  );
+  case "mobile-number":
+  return (
+    <MobileNumberScreen
+      onSendOTP={() => navigate("otp")}
+    />
+  );
+      case "otp":
+      return (
+    <OTPVerificationScreen
+      onVerify={() => navigate("setup")}
+    />
+    );
       case "setup":
-        return <RiderSetupScreen onComplete={() => navigate("home")} />;
-      case "home":
-        return (
-          <HomeDashboard
-            onStartRide={() => navigate("navigation-map")}
-            onNavigate={(tab) => navigate(tab as Screen)}
-          />
-        );
-      case "navigate":
+  return (
+    <RiderSetupScreen
+      onComplete={() => navigate("journey-setup")}
+    />
+    );
+    case "journey-setup":
+      return (
+        <JourneySetupScreen
+          onAnalyze={async (payload) => {
+            setAnalysisError("");
+            setIsAnalyzing(true);
+            try {
+              const payloadWithRider = {
+                ...payload,
+                riderId: currentRider?.id,
+              };
+
+              const result = await analyzeJourney(payloadWithRider);
+              setJourneyData(result);
+              navigate("home");
+            } catch (error) {
+              setAnalysisError(
+                error instanceof Error
+                  ? error.message
+                  : "Unable to analyze journey"
+              );
+            } finally {
+              setIsAnalyzing(false);
+            }
+          }}
+          isAnalyzing={isAnalyzing}
+          error={analysisError}
+        />
+      );
+    case "journey-analysis":
+      return (
+        <JourneyAnalysisScreen
+          onStartExpedition={() => navigate("home")}
+        />
+      );
+
+case "home":
+  return (
+    <HomeDashboard
+      onStartRide={() => navigate("navigation-map")}
+      onNavigate={(tab) => {
+        if (
+          tab === "home" ||
+          tab === "navigate" ||
+          tab === "intelligence" ||
+          tab === "readiness" ||
+          tab === "profile"
+        ) {
+          navigate(tabToScreen[tab as Tab]);
+        }
+      }}
+    />
+  );
+
+case "navigate":
         return <NavigateScreen onStartRide={() => navigate("navigation-map")} />;
       case "readiness":
         return <ReadinessScreen />;
@@ -171,13 +248,18 @@ export default function App() {
         {/* Screen content */}
         <AnimatePresence mode="wait">
           <motion.div
-            key={screen}
-            initial={{ opacity: 0, y: screen === "splash" ? 0 : 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            style={{ width: "100%", height: "100%" }}
-          >
+    key={screen}
+    initial={{ opacity: 0, y: screen === "splash" ? 0 : 12 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -8 }}
+    transition={{ duration: 0.25, ease: "easeOut" }}
+    style={{
+    width: "100%",
+    height: "100%",
+    paddingTop: screen === "splash" ? 0 : 60,
+    overflow: "hidden",
+      }}
+>
             {renderScreen()}
           </motion.div>
         </AnimatePresence>
@@ -199,7 +281,7 @@ export default function App() {
             onClick={() => setShowAskMoto(true)}
             style={{
               position: "absolute",
-              bottom: 76,
+              bottom: showNav ? `calc(76px + env(safe-area-inset-bottom, 8px))` : `calc(24px + env(safe-area-inset-bottom, 8px))`,
               right: 16,
               width: 52,
               height: 52,
@@ -224,7 +306,7 @@ export default function App() {
         )}
 
         {/* SOS button (always visible during ride) */}
-        {screen !== "splash" && screen !== "login" && screen !== "setup" && screen !== "navigation-map" && (
+        {screen !== "splash" && screen !== "login" && screen !== "otp" && screen !== "setup" && screen !== "journey-setup" && screen !== "journey-analysis" && (
           <motion.button
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -232,7 +314,7 @@ export default function App() {
             onClick={() => setShowEmergency(true)}
             style={{
               position: "absolute",
-              bottom: showNav ? 76 : 24,
+              bottom: showNav ? `calc(76px + env(safe-area-inset-bottom, 8px))` : `calc(24px + env(safe-area-inset-bottom, 8px))`,
               left: 16,
               background: "rgba(255,61,0,0.1)",
               border: "1px solid rgba(255,61,0,0.25)",
@@ -307,7 +389,7 @@ export default function App() {
       <div
         style={{
           position: "fixed",
-          bottom: 16,
+          bottom: `calc(16px + env(safe-area-inset-bottom, 8px))`,
           left: "50%",
           transform: "translateX(-50%)",
           fontFamily: "var(--font-mono)",

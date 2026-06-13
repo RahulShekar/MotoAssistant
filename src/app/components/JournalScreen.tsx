@@ -1,4 +1,5 @@
 import { Share2, Download, ChevronLeft } from "lucide-react";
+import { PrimaryButton } from "./ui/PrimaryButton";
 import { motion } from "motion/react";
 
 interface JournalScreenProps {
@@ -207,28 +208,10 @@ export function JournalScreen({ onBack }: JournalScreenProps) {
 
       {/* Share CTA */}
       <div style={{ padding: "0 20px" }}>
-        <button
-          style={{
-            width: "100%",
-            background: "#FF6B00",
-            border: "none",
-            borderRadius: 14,
-            padding: "16px",
-            color: "#FFFFFF",
-            fontFamily: "var(--font-display)",
-            fontSize: 17,
-            fontWeight: 700,
-            letterSpacing: "0.06em",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-          }}
-        >
+        <PrimaryButton className="flex items-center justify-center gap-2">
           <Share2 size={18} />
           SHARE EXPEDITION
-        </button>
+        </PrimaryButton>
         <button
           style={{
             width: "100%",

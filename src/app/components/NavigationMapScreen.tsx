@@ -1,5 +1,7 @@
-import { useState } from "react";
-import { Mic, Navigation, Fuel, Clock, Thermometer, AlertTriangle } from "lucide-react";
+import { useJourney } from "../context/JourneyContext";
+import { useState, useMemo, useEffect } from "react";
+import { GoogleMap, useJsApiLoader, Polyline, Marker } from "@react-google-maps/api";
+import { Mic, Navigation, Fuel, Clock, Thermometer, AlertTriangle, X } from "lucide-react";
 import { motion } from "motion/react";
 
 interface NavigationMapScreenProps {
@@ -8,200 +10,243 @@ interface NavigationMapScreenProps {
   onEmergency: () => void;
 }
 
-// SVG map simulation of Manali-Leh highway
-const MapSVG = () => (
-  <svg width="100%" height="100%" viewBox="0 0 390 520" preserveAspectRatio="xMidYMid slice">
-    {/* Background terrain */}
-    <rect width="390" height="520" fill="#0D1A0D" />
+const libraries: any[] = ["geometry"];
 
-    {/* Terrain shapes - mountains */}
-    <polygon points="0,300 80,160 160,280 240,120 320,200 390,100 390,520 0,520" fill="#0A1408" />
-    <polygon points="0,350 60,220 130,310 200,180 280,260 350,160 390,200 390,520 0,520" fill="#0C1A0C" />
-
-    {/* Water bodies */}
-    <ellipse cx="320" cy="380" rx="40" ry="20" fill="#0A1A2A" opacity="0.6" />
-
-    {/* Grid lines (terrain) */}
-    {Array.from({ length: 8 }).map((_, i) => (
-      <line key={`h${i}`} x1="0" y1={i * 70} x2="390" y2={i * 70} stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
-    ))}
-    {Array.from({ length: 6 }).map((_, i) => (
-      <line key={`v${i}`} x1={i * 70} y1="0" x2={i * 70} y2="520" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
-    ))}
-
-    {/* Main highway route */}
-    <path
-      d="M 195 490 C 190 440 185 400 175 360 C 165 320 150 300 140 270 C 130 240 145 210 160 190 C 175 170 185 155 180 130 C 175 105 165 85 170 60 C 175 35 185 20 195 10"
-      stroke="rgba(255,107,0,0.3)"
-      strokeWidth="12"
-      fill="none"
-      strokeLinecap="round"
-    />
-    <path
-      d="M 195 490 C 190 440 185 400 175 360 C 165 320 150 300 140 270 C 130 240 145 210 160 190 C 175 170 185 155 180 130 C 175 105 165 85 170 60 C 175 35 185 20 195 10"
-      stroke="#FF6B00"
-      strokeWidth="3"
-      fill="none"
-      strokeLinecap="round"
-      strokeDasharray="6 3"
-      opacity="0.8"
-    />
-
-    {/* Completed route section */}
-    <path
-      d="M 195 490 C 190 440 185 400 175 360 C 165 320 150 300 140 270"
-      stroke="#00C853"
-      strokeWidth="4"
-      fill="none"
-      strokeLinecap="round"
-      opacity="0.9"
-    />
-
-    {/* POI markers */}
-    {/* Fuel station */}
-    <circle cx="155" cy="295" r="8" fill="#FFB300" opacity="0.9" />
-    <text x="155" y="298" textAnchor="middle" fill="#000" fontSize="9" fontWeight="bold">⛽</text>
-
-    {/* Hospital */}
-    <circle cx="120" cy="340" r="7" fill="#FF6B00" opacity="0.8" />
-    <text x="120" y="343" textAnchor="middle" fill="#fff" fontSize="8">+</text>
-
-    {/* Rest stop */}
-    <circle cx="165" cy="190" r="7" fill="#4FC3F7" opacity="0.8" />
-    <text x="165" y="193" textAnchor="middle" fill="#000" fontSize="8">🏕</text>
-
-    {/* Road closure warning */}
-    <circle cx="180" cy="130" r="7" fill="#FF3D00" opacity="0.9" />
-    <text x="180" y="133" textAnchor="middle" fill="#fff" fontSize="9">!</text>
-
-    {/* Current position */}
-    <circle cx="140" cy="270" r="14" fill="rgba(0,200,83,0.15)" />
-    <circle cx="140" cy="270" r="8" fill="#00C853" />
-    <circle cx="140" cy="270" r="4" fill="#fff" />
-
-    {/* Heading arrow */}
-    <polygon points="140,252 135,262 140,258 145,262" fill="#00C853" />
-
-    {/* Destination */}
-    <circle cx="195" cy="10" r="8" fill="rgba(255,107,0,0.3)" />
-    <circle cx="195" cy="10" r="4" fill="#FF6B00" />
-
-    {/* Labels */}
-    <text x="205" y="14" fill="rgba(255,107,0,0.7)" fontSize="9" fontFamily="monospace">LEH</text>
-    <text x="200" y="498" fill="rgba(255,255,255,0.3)" fontSize="9" fontFamily="monospace">MANALI</text>
-    <text x="168" y="260" fill="rgba(255,255,255,0.4)" fontSize="9" fontFamily="monospace">YOU</text>
-
-    {/* Weather zone */}
-    <ellipse cx="175" cy="100" rx="60" ry="40" fill="rgba(100,149,237,0.06)" stroke="rgba(100,149,237,0.15)" strokeWidth="1" strokeDasharray="4 3" />
-    <text x="175" y="88" textAnchor="middle" fill="rgba(100,149,237,0.5)" fontSize="9" fontFamily="monospace">RAIN ZONE</text>
-  </svg>
-);
+interface POI {
+  placeId: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  types: string[];
+}
 
 export function NavigationMapScreen({ onAskMoto, onAlert, onEmergency }: NavigationMapScreenProps) {
-  const [speed] = useState(48);
+  const { journeyData, currentRider } = useJourney();
+  const [speed, setSpeed] = useState(48);
+  const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null);
+  
+  const [fuelStations, setFuelStations] = useState<POI[]>([]);
+  const [serviceCenters, setServiceCenters] = useState<POI[]>([]);
+  const [emergencyPlaces, setEmergencyPlaces] = useState<POI[]>([]);
+  const [insightIndex, setInsightIndex] = useState(0);
+  
+  const route = journeyData?.route;
+  const weather = journeyData?.weather;
+  const fuelPlan = journeyData?.fuelPlan;
+  
+  const { isLoaded } = useJsApiLoader({
+    id: "google-map-script",
+    googleMapsApiKey: (import.meta as any).env.VITE_GOOGLE_MAPS_API_KEY || "",
+    libraries,
+  });
+
+  const path = useMemo(() => {
+    if (!route?.polyline || !isLoaded || !window.google) return [];
+    try {
+      return window.google.maps.geometry.encoding.decodePath(route.polyline);
+    } catch (e) {
+      return [];
+    }
+  }, [route?.polyline, isLoaded]);
+
+  // Geolocation tracking
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      const watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          setCurrentLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+          setSpeed(Math.round((position.coords.speed || 0) * 3.6));
+        },
+        (error) => console.error("Geolocation error:", error),
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+      );
+      return () => navigator.geolocation.clearWatch(watchId);
+    }
+  }, []);
+
+  // Set initial location from route
+  useEffect(() => {
+    if (!currentLocation && path.length > 0) {
+      setCurrentLocation({ lat: path[0].lat(), lng: path[0].lng() });
+    }
+  }, [path, currentLocation]);
+
+  // Fetch POIs
+  useEffect(() => {
+    if (!currentLocation) return;
+    const fetchPOIs = async () => {
+      try {
+        const [fuelRes, serviceRes, emergencyRes] = await Promise.all([
+          fetch(`http://localhost:3001/navigation/fuel-stations?lat=${currentLocation.lat}&lng=${currentLocation.lng}&radius=10000`),
+          fetch(`http://localhost:3001/navigation/service-centers?lat=${currentLocation.lat}&lng=${currentLocation.lng}&brand=${currentRider?.bike || ""}&radius=20000`),
+          fetch(`http://localhost:3001/navigation/emergency?lat=${currentLocation.lat}&lng=${currentLocation.lng}&radius=15000`)
+        ]);
+        
+        if (fuelRes.ok) setFuelStations((await fuelRes.json()).places || []);
+        if (serviceRes.ok) setServiceCenters((await serviceRes.json()).places || []);
+        if (emergencyRes.ok) setEmergencyPlaces((await emergencyRes.json()).places || []);
+      } catch (error) {
+        console.error("Failed to fetch POIs", error);
+      }
+    };
+
+    fetchPOIs();
+    const intervalId = setInterval(fetchPOIs, 5 * 60 * 1000);
+    return () => clearInterval(intervalId);
+  }, [currentLocation?.lat, currentLocation?.lng, currentRider?.bike]);
+
+  // Insights rotation
+  const insights = useMemo(() => {
+    return [
+      journeyData?.weatherRisk === "HIGH" ? "Severe weather expected ahead. Ride with caution." : "Weather conditions look clear for the next hour.",
+      `Next fuel stop recommended in ${Math.max(10, Math.floor((fuelPlan?.fuelStopsNeeded || 0) * 50))} km.`,
+      serviceCenters.length > 0 ? `Nearest ${currentRider?.bike || "Service"} center is ${serviceCenters[0].name}.` : "Monitoring nearby service centers.",
+      emergencyPlaces.length > 0 ? `Emergency services available nearby: ${emergencyPlaces[0].name}.` : "MotoOS active monitoring."
+    ];
+  }, [journeyData, serviceCenters, emergencyPlaces, fuelPlan, currentRider]);
+
+  useEffect(() => {
+    const interval = setInterval(() => setInsightIndex((prev) => (prev + 1) % insights.length), 8000);
+    return () => clearInterval(interval);
+  }, [insights.length]);
+
+  const calcEta = () => {
+    if (!route?.durationHours) return "6:42 PM";
+    const d = new Date();
+    d.setMinutes(d.getMinutes() + Math.floor(route.durationHours * 60));
+    return d.toLocaleTimeString([], { hour: '2-digit', minute:'2-digit' });
+  };
+
+  const mapCenter = currentLocation || (path.length > 0 ? path[Math.floor(path.length / 2)] : { lat: 32.2396, lng: 77.1887 });
+
+  if (!isLoaded) {
+    return (
+      <div className="w-full h-full bg-[#0D1A0D] flex items-center justify-center text-zinc-500 font-mono text-sm">
+        INITIALIZING SATELLITES...
+      </div>
+    );
+  }
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%", background: "#0D1A0D", overflow: "hidden" }}>
-      {/* Map fills 80% */}
-      <div style={{ position: "absolute", inset: 0, top: 70, bottom: 140 }}>
-        <MapSVG />
-      </div>
-
+      <div className="relative w-full h-full bg-[#0B0B0B] overflow-hidden flex flex-col">
       {/* Top HUD */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          background: "rgba(11,11,11,0.92)",
-          backdropFilter: "blur(16px)",
-          borderBottom: "1px solid rgba(255,255,255,0.07)",
-          padding: "40px 16px 12px",
-          zIndex: 20,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          {/* Distance + ETA */}
-          <div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 26, fontWeight: 600, color: "#FFFFFF", letterSpacing: "-0.02em" }}>
-              187 <span style={{ fontSize: 14, color: "#555" }}>km</span>
+      <div className="absolute top-0 left-0 right-0 z-20 pt-12 pb-4 px-4 pointer-events-none">
+        <div className="flex items-start justify-between">
+          <div className="pointer-events-auto">
+            <button className="flex items-center gap-1.5 bg-[#151515] border border-white/10 rounded-full px-3 py-1.5 mb-3 text-zinc-300 text-[11px] font-semibold">
+              <X size={14} /> End Ride
+            </button>
+            <div className="flex items-baseline gap-1">
+              <span className="font-bold text-[28px] leading-none text-white tracking-tight">{route?.distanceKm ?? 187}</span>
+              <span className="text-zinc-500 text-sm font-semibold">km</span>
             </div>
-            <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "#555" }}>ETA 6:42 PM</div>
+            <div className="text-[10px] text-zinc-500 font-medium uppercase mt-1">ETA {calcEta()}</div>
           </div>
 
-          {/* Speed */}
-          <div
-            style={{
-              textAlign: "center",
-              background: "#151515",
-              border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: 12,
-              padding: "8px 16px",
-            }}
-          >
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 28, fontWeight: 600, color: "#FF6B00", letterSpacing: "-0.02em", lineHeight: 1 }}>
-              {speed}
-            </div>
-            <div style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.1em" }}>
-              km/h
-            </div>
+          <div className="flex flex-col items-center bg-[#1C1C1E] border border-white/5 rounded-2xl px-5 py-2.5 mt-[-8px] pointer-events-auto shadow-2xl">
+            <div className="text-[32px] font-bold text-[#FF6B00] leading-none tracking-tighter">{speed}</div>
+            <div className="text-[10px] text-zinc-500 font-bold tracking-wider mt-1">KM/H</div>
           </div>
 
-          {/* Status */}
-          <div style={{ textAlign: "right" }}>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                background: "rgba(0,200,83,0.08)",
-                border: "1px solid rgba(0,200,83,0.2)",
-                borderRadius: 20,
-                padding: "4px 10px",
-                marginBottom: 4,
-              }}
-            >
-              <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#00C853" }} />
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "#00C853" }}>LIVE</span>
+          <div className="flex flex-col items-end pointer-events-auto">
+            <div className="flex items-center gap-1.5 bg-[#00C853]/10 border border-[#00C853]/30 rounded-full px-2.5 py-1 mb-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-[#00C853]" />
+              <span className="text-[10px] text-[#00C853] font-bold tracking-wider uppercase">LIVE</span>
             </div>
-            <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "#555" }}>NH-3 Manali-Leh</div>
+            <div className="text-[10px] text-zinc-500 font-medium mt-1 uppercase max-w-[100px] truncate text-right">
+              {route?.routeName || "NH-3 Manali-Leh"}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Map legend */}
-      <div
-        style={{
-          position: "absolute",
-          top: 90,
-          right: 12,
-          zIndex: 15,
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
-        }}
-      >
+      {/* Map fills map area */}
+      <div className="absolute inset-0 top-0 bottom-[140px]">
+        <GoogleMap
+          mapContainerStyle={{ width: "100%", height: "100%" }}
+          center={mapCenter}
+          zoom={13}
+          options={{
+            disableDefaultUI: true,
+            styles: [
+              { elementType: "geometry", stylers: [{ color: "#0B0F0B" }] },
+              { elementType: "labels.text.stroke", stylers: [{ color: "#000000" }] },
+              { elementType: "labels.text.fill", stylers: [{ color: "#3A5A3A" }] },
+              { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#5A7A5A" }] },
+              { featureType: "road", elementType: "geometry", stylers: [{ color: "#142214" }] },
+              { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#1C331C" }] },
+              { featureType: "water", elementType: "geometry", stylers: [{ color: "#050805" }] },
+            ],
+          }}
+        >
+          {path.length > 0 && (
+            <>
+              {/* Fake completed path (green) */}
+              <Polyline path={path.slice(0, Math.floor(path.length / 2))} options={{ strokeColor: "#00C853", strokeOpacity: 1, strokeWeight: 8 }} />
+              {/* Fake upcoming path (orange dashed) */}
+              <Polyline path={path.slice(Math.floor(path.length / 2))} options={{ strokeColor: "#FF6B00", strokeOpacity: 1, strokeWeight: 8 }} />
+            </>
+          )}
+          
+          {currentLocation && (
+            <Marker 
+              position={currentLocation} 
+              icon={{
+                path: window.google.maps.SymbolPath.CIRCLE,
+                fillColor: "#FFF",
+                fillOpacity: 1,
+                strokeColor: "#00C853",
+                strokeWeight: 4,
+                scale: 8,
+              }} 
+            />
+          )}
+
+          {fuelStations.map((poi) => (
+             <Marker 
+               key={poi.placeId} 
+               position={{ lat: poi.latitude, lng: poi.longitude }}
+               icon={{
+                 path: window.google.maps.SymbolPath.CIRCLE,
+                 fillColor: "#FFB300",
+                 fillOpacity: 1,
+                 strokeColor: "#000",
+                 strokeWeight: 2,
+                 scale: 6,
+               }}
+             />
+          ))}
+
+          {emergencyPlaces.map((poi) => (
+             <Marker 
+               key={poi.placeId} 
+               position={{ lat: poi.latitude, lng: poi.longitude }}
+               icon={{
+                 path: window.google.maps.SymbolPath.CIRCLE,
+                 fillColor: "#FF3D00",
+                 fillOpacity: 1,
+                 strokeColor: "#000",
+                 strokeWeight: 2,
+                 scale: 6,
+               }}
+             />
+          ))}
+        </GoogleMap>
+      </div>
+
+      {/* Map Legend */}
+      <div className="absolute top-[140px] right-4 z-15 flex flex-col gap-2">
         {[
-          { color: "#FFB300", label: "⛽ Fuel" },
           { color: "#FF6B00", label: "+ Hospital" },
-          { color: "#4FC3F7", label: "🏕 Rest" },
+          { color: "#4FC3F7", label: "☕ Rest" },
           { color: "#FF3D00", label: "! Alert" },
         ].map((item) => (
-          <div
-            key={item.label}
-            style={{
-              background: "rgba(11,11,11,0.85)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: 8,
-              padding: "4px 8px",
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-            }}
-          >
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: item.color }} />
-            <span style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "#888" }}>{item.label}</span>
+          <div key={item.label} className="bg-[#151515]/90 border border-white/5 rounded-full px-3 py-1.5 flex items-center gap-2 backdrop-blur-md">
+            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+            <span className="text-[10px] text-zinc-400 font-medium">{item.label}</span>
           </div>
         ))}
       </div>
@@ -210,135 +255,73 @@ export function NavigationMapScreen({ onAskMoto, onAlert, onEmergency }: Navigat
       <motion.button
         whileTap={{ scale: 0.95 }}
         onClick={onAlert}
-        style={{
-          position: "absolute",
-          top: 100,
-          left: 12,
-          zIndex: 15,
-          background: "rgba(255,61,0,0.12)",
-          border: "1px solid rgba(255,61,0,0.3)",
-          borderRadius: 10,
-          padding: "8px 12px",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-        }}
+        className="absolute top-[140px] left-4 z-15 bg-[#FF3D00]/10 border border-[#FF3D00]/30 rounded-xl px-3 py-2 flex items-center gap-2 backdrop-blur-md"
       >
         <AlertTriangle size={14} color="#FF3D00" />
-        <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "#FF3D00" }}>Rain Ahead</span>
+        <span className="text-[11px] font-bold text-[#FF3D00] uppercase tracking-wider">
+          Rain Ahead
+        </span>
       </motion.button>
 
-      {/* Bottom info bar */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          background: "rgba(11,11,11,0.96)",
-          backdropFilter: "blur(16px)",
-          borderTop: "1px solid rgba(255,255,255,0.07)",
-          padding: "12px 16px 20px",
-          zIndex: 20,
-        }}
-      >
-        {/* Next turn */}
-        <div
-          style={{
-            background: "#151515",
-            borderRadius: 12,
-            padding: "10px 14px",
-            marginBottom: 12,
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-          }}
-        >
-          <Navigation size={22} color="#FF6B00" />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700, color: "#FFFFFF", letterSpacing: "0.02em" }}>
-              Keep on NH-3
+      {/* Bottom Panel */}
+      <div className="absolute bottom-0 left-0 right-0 bg-[#0B0B0B] rounded-t-3xl p-5 z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        
+        {/* Navigation Info */}
+        <div className="bg-[#1C1C1E] rounded-2xl p-4 mb-5 flex items-center justify-between">
+          <div className="flex gap-4">
+            <div className="flex flex-col items-center justify-between">
+              <Navigation size={24} color="#FF6B00" className="rotate-45" />
+              <button onClick={onEmergency} className="mt-2 bg-[#FF3D00]/10 border border-[#FF3D00]/30 rounded-lg px-2.5 py-1 text-[9px] font-bold text-[#FF3D00] uppercase tracking-wider">
+                SOS
+              </button>
             </div>
-            <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "#555", marginTop: 1 }}>
-              towards Keylong · 18 km
+            <div>
+              <div className="text-[17px] font-bold text-white tracking-tight">Keep on {route?.primaryHighway || "NH-3"}</div>
+              <div className="text-[12px] text-zinc-500 mt-0.5">towards Keylong · 18 km</div>
             </div>
           </div>
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "#FFB300" }}>⛽ 18km</div>
+          <div className="flex items-center gap-1.5 text-[#FF3D00]">
+            <Fuel size={14} />
+            <span className="font-bold text-[13px]">18km</span>
+          </div>
         </div>
 
-        {/* Bottom metrics */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ display: "flex", gap: 20 }}>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 1 }}>
-                <Fuel size={12} color="#FF6B00" />
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 600, color: "#FFF" }}>72%</span>
+        {/* Bottom Metrics & Moto FAB */}
+        <div className="flex justify-between items-center px-1">
+          <div className="flex gap-6">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1.5">
+                <Fuel size={14} color="#FFB300" />
+                <span className="font-bold text-sm text-white">72%</span>
               </div>
-              <div style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "#444" }}>Fuel</div>
+              <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Fuel</span>
             </div>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 1 }}>
-                <Thermometer size={12} color="#4FC3F7" />
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 600, color: "#FFF" }}>21°C</span>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1.5">
+                <Thermometer size={14} color="#4FC3F7" />
+                <span className="font-bold text-sm text-white">{weather?.temperature ?? "21"}°C</span>
               </div>
-              <div style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "#444" }}>Temp</div>
+              <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Temp</span>
             </div>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 1 }}>
-                <Clock size={12} color="#A78BFA" />
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 600, color: "#FFF" }}>4:12</span>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1.5">
+                <Clock size={14} color="#A78BFA" />
+                <span className="font-bold text-sm text-white">{route?.durationHours ? `${route.durationHours}:12` : "4:12"}</span>
               </div>
-              <div style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "#444" }}>Riding</div>
+              <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Riding</span>
             </div>
           </div>
 
-          {/* Ask Moto FAB */}
           <motion.button
             whileTap={{ scale: 0.92 }}
             onClick={onAskMoto}
-            style={{
-              width: 54,
-              height: 54,
-              borderRadius: "50%",
-              background: "#FF6B00",
-              border: "none",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              boxShadow: "0 4px 20px rgba(255,107,0,0.4)",
-              gap: 2,
-            }}
+            className="w-[60px] h-[60px] rounded-full bg-[#FF6B00] shadow-[0_4px_20px_rgba(255,107,0,0.4)] flex flex-col items-center justify-center gap-0.5"
           >
-            <Mic size={20} color="#fff" />
-            <span style={{ fontFamily: "var(--font-body)", fontSize: 8, color: "rgba(255,255,255,0.8)", letterSpacing: "0.06em" }}>MOTO</span>
+            <Mic size={20} color="#FFF" />
+            <span className="text-[9px] font-black text-white tracking-widest uppercase">MOTO</span>
           </motion.button>
         </div>
-
-        {/* SOS */}
-        <button
-          onClick={onEmergency}
-          style={{
-            position: "absolute",
-            bottom: 72,
-            left: 16,
-            background: "rgba(255,61,0,0.1)",
-            border: "1px solid rgba(255,61,0,0.25)",
-            borderRadius: 8,
-            padding: "5px 10px",
-            cursor: "pointer",
-            color: "#FF3D00",
-            fontFamily: "var(--font-mono)",
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: "0.06em",
-          }}
-        >
-          SOS
-        </button>
       </div>
-    </div>
+      </div>
   );
 }

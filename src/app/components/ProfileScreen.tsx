@@ -1,5 +1,6 @@
 import { Settings, ChevronRight, Award, MapPin } from "lucide-react";
 import { motion } from "motion/react";
+import { ScreenWrapper } from "./ui/ScreenWrapper";
 
 interface ProfileScreenProps {
   onSettings: () => void;
@@ -22,22 +23,23 @@ const badges = [
 
 export function ProfileScreen({ onSettings }: ProfileScreenProps) {
   return (
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-        background: "#0B0B0B",
-        display: "flex",
-        flexDirection: "column",
-        overflowY: "auto",
-        paddingBottom: 80,
-      }}
-    >
+    <ScreenWrapper>
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          background: "#0B0B0B",
+          display: "flex",
+          flexDirection: "column",
+          overflowY: "auto",
+          paddingBottom: 80,
+        }}
+      >
       {/* Header */}
       <div
         style={{
           background: "linear-gradient(to bottom, rgba(255,107,0,0.06), transparent)",
-          padding: "48px 20px 24px",
+          padding: "24px 0 12px",
           borderBottom: "1px solid rgba(255,255,255,0.05)",
           marginBottom: 20,
         }}
@@ -62,7 +64,7 @@ export function ProfileScreen({ onSettings }: ProfileScreenProps) {
             </div>
             <div>
               <div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 700, color: "#FFFFFF", letterSpacing: "0.02em" }}>
-                ARJUN SINGH
+                RAHUL SHEKAR
               </div>
               <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "#555", marginTop: 2 }}>
                 Expert Rider · 7+ years
@@ -198,6 +200,7 @@ export function ProfileScreen({ onSettings }: ProfileScreenProps) {
           ))}
         </div>
       </div>
-    </div>
+      </div>
+    </ScreenWrapper>
   );
 }
